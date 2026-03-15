@@ -1,0 +1,24 @@
+ARG PYTHON_VERSION
+FROM python:${PYTHON_VERSION}-slim
+
+ARG TORCH_INDEX
+ARG TORCH_VERSION
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY api/requirements.txt .
+# EXAMPLE (Vision): torchvision을 프로젝트에 맞게 교체
+RUN pip install --no-cache-dir \
+        "torch==${TORCH_VERSION}" \
+        torchvision \
+        --index-url ${TORCH_INDEX} && \
+    pip install --no-cache-dir -r requirements.txt
+
+COPY api/ api/
+
+EXPOSE 8000
+
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
