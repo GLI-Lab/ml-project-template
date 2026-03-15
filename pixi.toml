@@ -55,6 +55,9 @@ gpu-info = 'python -c "import torch; [print(f\"GPU {i}: {torch.cuda.get_device_n
 docker-gpu-test = 'sudo docker compose exec api python -c "import torch; print(torch.__version__); print(torch.cuda.is_available())"'
 docker-gpu-info = 'sudo docker compose exec api python -c "import torch; [print(f\"GPU {i}: {torch.cuda.get_device_name(i)}, {torch.cuda.get_device_properties(i).total_memory // 1024**3}GB\") for i in range(torch.cuda.device_count())]"'
 
+[target.osx-arm64.activation.env]
+KMP_DUPLICATE_LIB_OK = "TRUE"
+
 [target.osx-arm64.tasks]
 gpu-test = 'python -c "import torch; print(torch.__version__); print(torch.backends.mps.is_available())"'
 gpu-info = 'python -c "import subprocess, torch; mem=int(subprocess.check_output([\"sysctl\",\"-n\",\"hw.memsize\"])); print(f\"MPS available: {torch.backends.mps.is_available()}\"); print(f\"Unified Memory: {mem // 1024**3}GB (CPU+GPU shared)\")"'
