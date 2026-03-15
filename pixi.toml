@@ -23,7 +23,7 @@ torch = { version = "==2.10.*", index = "https://download.pytorch.org/whl/cu128"
 ##########################################################################################
 # EXAMPLE (Vision)
 # https://github.com/pytorch/vision?tab=readme-ov-file#installation
-torchvision = { version = "==0.25.*", index = "https://download.pytorch.org/whl/cu128" }
+torchvision = { version = "*", index = "https://download.pytorch.org/whl/cu128" }
 ##########################################################################################
 
 [target.osx-arm64.pypi-dependencies]  # CUDA 없음
@@ -31,7 +31,7 @@ torch = { version = "==2.10.*", index = "https://download.pytorch.org/whl/cpu" }
 ##########################################################################################
 # EXAMPLE (Vision)
 # https://github.com/pytorch/vision?tab=readme-ov-file#installation
-torchvision = { version = "==0.25.*", index = "https://download.pytorch.org/whl/cpu" }
+torchvision = { version = "*", index = "https://download.pytorch.org/whl/cpu" }
 ##########################################################################################
 
 [feature.serving.pypi-dependencies]  # 개발용 서빙 (도커X)
