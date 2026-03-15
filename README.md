@@ -164,11 +164,14 @@ docker compose up --build           # 서버 실행
 ### 주요 명령어
 
 ```bash
-docker compose up --build              # 서버 실행
+docker compose up --build              # 서버 실행 (컨테이너 재생성, 기존 볼륨 그대로 마운트
 docker compose up --build -d           # 백그라운드 실행
 docker compose logs -f                 # 로그 확인
 docker compose restart                 # 재시작
-docker compose down -v --remove-orphans  # 정리
+
+# 종료
+docker compose down                      # 컨테이너 삭제, 볼륨 유지
+docker compose down -v --remove-orphans  # 완전 초기화 (볼륨·고아 컨테이너 포함 삭제)
 ```
 
 ### 모델 교체
