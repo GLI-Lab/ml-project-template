@@ -8,9 +8,10 @@ class Prediction(BaseModel):
 
 
 class PredictResponse(BaseModel):
+    model: str
     predictions: list[Prediction]
 
 
 class HealthResponse(BaseModel):
     status: str
-    model_loaded: bool
+    models_loaded: dict[str, bool]

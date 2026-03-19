@@ -1,0 +1,12 @@
+# Training hyperparameters
+batch_size: 32
+lr: 0.001
+epochs: 10
+seed: 42
+
+# Data
+data_dir: dataset/imagenet/
+model_dir: models/resnet50/
+
+# Device: cpu or cuda
+device: cuda

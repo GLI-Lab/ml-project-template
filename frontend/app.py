@@ -16,9 +16,22 @@ with st.sidebar:
         response = httpx.get(f"{API_URL}/api/health", timeout=5)
         health = response.json()
         st.success(f"Status: {health['status']}")
-        st.info(f"Model loaded: {health['model_loaded']}")
+        model_lines = []
+        for model_name, loaded in health["models_loaded"].items():
+            icon = "✅" if loaded else "❌"
+            model_lines.append(f"{icon} {model_name}")
+        st.success("\n\n".join(model_lines))
     except Exception as e:
         st.error(f"Server unreachable: {e}")
+
+# Model selector
+try:
+    models_response = httpx.get(f"{API_URL}/api/models", timeout=5)
+    available_models = models_response.json()["models"]
+except Exception:
+    available_models = ["resnet50"]
+
+selected_model = st.selectbox("Model", available_models)
 
 # Main: image upload and prediction
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png", "bmp", "webp"])
@@ -32,11 +45,12 @@ if uploaded_file is not None:
         st.image(image, use_container_width=True)
 
     with col2:
-        st.subheader("Top-5 Predictions")
+        st.subheader(f"Top-5 Predictions")
         uploaded_file.seek(0)
         try:
             response = httpx.post(
                 f"{API_URL}/api/predict",
+                params={"model": selected_model},
                 files={"file": (uploaded_file.name, uploaded_file.read(), uploaded_file.type)},
                 timeout=30,
             )
