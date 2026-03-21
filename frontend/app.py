@@ -41,12 +41,10 @@ with st.sidebar:
     available_models = [m["name"] for m in models_data] if models_data else list(models_loaded.keys()) or ["resnet50"]
 
     # Model selector
-    st.subheader("Model")
     selected_model = st.selectbox(
         "Model",
         available_models,
         format_func=lambda m: f"{m} ({'loaded' if models_loaded.get(m) else 'not loaded'})",
-        label_visibility="collapsed",
     )
 
     # Configuration
