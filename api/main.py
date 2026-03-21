@@ -1,10 +1,11 @@
 import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, UploadFile
 
-from api.model import model_managers
+from api.models import model_managers
 from api.schemas import HealthResponse, PredictResponse
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "info").upper()
@@ -48,7 +49,16 @@ def health():
 
 @app.get("/api/models")
 def list_models():
-    return {"models": list(_manager_map.keys())}
+    return {
+        "models": [
+            {
+                "name": m.name,
+                "loaded": m.is_loaded,
+                "config": m.get_config(),
+            }
+            for m in model_managers
+        ],
+    }
 
 
 @app.post("/api/predict", response_model=PredictResponse)
@@ -75,11 +85,74 @@ async def predict(file: UploadFile, model: str = "resnet50"):
     return PredictResponse(model=model, predictions=predictions)
 
 
+_MODELS_DIR = Path(__file__).parent.parent / "models"
+_WEIGHT_EXTS = {".pt", ".pth"}
+
+
+@app.get("/api/browse")
+def browse(path: str = ""):
+    """models/ 디렉토리를 탐색하여 하위 폴더와 .pt/.pth 파일 목록을 반환합니다."""
+    base = _MODELS_DIR
+    target = (base / path).resolve()
+
+    # models/ 밖으로 나가는 경로 차단
+    if not str(target).startswith(str(base.resolve())):
+        raise HTTPException(status_code=400, detail="Invalid path")
+    if not target.is_dir():
+        raise HTTPException(status_code=404, detail="Directory not found")
+
+    dirs = sorted(d.name for d in target.iterdir() if d.is_dir())
+    weights = sorted(f.name for f in target.iterdir() if f.is_file() and f.suffix in _WEIGHT_EXTS)
+    rel_path = str(target.relative_to(base))
+
+    return {
+        "path": rel_path,
+        "dirs": dirs,
+        "weights": weights,
+        "num_weights": len(weights),
+    }
+
+
+@app.post("/api/load-weights")
+def load_weights(model: str, path: str):
+    """선택한 모델에 .pt/.pth 가중치 파일을 로드합니다."""
+    manager = _manager_map.get(model)
+    if manager is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown model '{model}'. Available: {list(_manager_map.keys())}",
+        )
+    if not manager.is_loaded:
+        raise HTTPException(status_code=503, detail=f"Model '{model}' is not loaded")
+
+    weights_path = Path(path).resolve()
+    if not str(weights_path).startswith(str(_MODELS_DIR.resolve())):
+        raise HTTPException(status_code=400, detail="Invalid path")
+    if not weights_path.is_file():
+        raise HTTPException(status_code=404, detail="Weight file not found")
+
+    try:
+        manager.load_weights(weights_path)
+        logger.info("Loaded weights for model '%s' from %s", model, weights_path)
+    except Exception as e:
+        logger.exception("Failed to load weights for model '%s'", model)
+        raise HTTPException(status_code=500, detail=f"Failed to load weights: {e}")
+
+    return {"status": "loaded", "model": model, "path": str(weights_path)}
+
+
 @app.post("/api/reload")
-def reload():
-    for manager in model_managers:
+def reload(model: str | None = None):
+    """모델을 기본 pretrained 가중치로 다시 로드합니다. model 미지정 시 전체 리로드."""
+    targets = [_manager_map[model]] if model else model_managers
+    if model and model not in _manager_map:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown model '{model}'. Available: {list(_manager_map.keys())}",
+        )
+    for manager in targets:
         logger.info("Reloading model: %s", manager.name)
         manager.unload()
         manager.load()
         logger.info("Model reloaded: %s", manager.name)
-    return {"status": "reloaded"}
+    return {"status": "reloaded", "models": [m.name for m in targets]}

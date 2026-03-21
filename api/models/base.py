@@ -1,18 +1,15 @@
 import json
 import os
+from abc import ABC, abstractmethod
 from io import BytesIO
 from pathlib import Path
-from typing import Callable
 
 import torch
-import torchvision.models as models
 import torchvision.transforms as transforms
 from PIL import Image
 
 DEVICE = os.getenv("DEVICE", "cpu")
-_MODELS_DIR = Path(__file__).parent.parent / "models"
-
-_DATA_DIR = Path(__file__).parent.parent / "dataset" / "imagenet"
+_DATA_DIR = Path(__file__).parent.parent.parent / "dataset" / "imagenet"
 _LABELS_PATH = _DATA_DIR / "imagenet-simple-labels.json"
 _LABELS_KO_PATH = _DATA_DIR / "imagenet_ko.json"
 
@@ -46,23 +43,28 @@ _transform = transforms.Compose([
 ])
 
 
-class ModelManager:
-    def __init__(self, name: str, model_fn: Callable, weights, weights_path: Path | None = None):
+class ModelManager(ABC):
+    """모델별 추론 모듈의 공통 인터페이스."""
+
+    def __init__(self, name: str):
         self.name = name
-        self._model_fn = model_fn
-        self._weights = weights
-        self._weights_path = weights_path
         self.model: torch.nn.Module | None = None
         self.device = torch.device(DEVICE)
 
+    @abstractmethod
+    def get_config(self) -> dict:
+        """모델의 현재 설정을 반환합니다."""
+
+    @abstractmethod
     def load(self):
-        if self._weights_path is not None:
-            self.model = self._model_fn(weights=None)
-            state_dict = torch.load(self._weights_path, map_location=self.device, weights_only=True)
-            self.model.load_state_dict(state_dict)
-        else:
-            self.model = self._model_fn(weights=self._weights)
-        self.model.to(self.device)
+        """모델 가중치를 로드합니다."""
+
+    def load_weights(self, path: Path):
+        """외부 가중치 파일(.pt/.pth)을 로드합니다."""
+        if self.model is None:
+            raise RuntimeError(f"Model '{self.name}' must be loaded first")
+        state_dict = torch.load(path, map_location=self.device, weights_only=True)
+        self.model.load_state_dict(state_dict)
         self.model.eval()
 
     def unload(self):
@@ -99,29 +101,3 @@ class ModelManager:
             }
             for prob, idx in zip(top5_probs, top5_indices)
         ]
-
-
-model_managers: list[ModelManager] = [
-    ModelManager(
-        name="resnet50",
-        model_fn=models.resnet50,
-        weights=models.ResNet50_Weights.IMAGENET1K_V1,
-    ),
-    ModelManager(
-        name="efficientnet_b0",
-        model_fn=models.efficientnet_b0,
-        weights=models.EfficientNet_B0_Weights.IMAGENET1K_V1,
-    ),
-    ModelManager(
-        name="efficientnet_b3",
-        model_fn=models.efficientnet_b3,
-        weights=models.EfficientNet_B3_Weights.IMAGENET1K_V1,
-    ),
-    # 로컬 가중치 사용 예시: models/resnet50/model.pt
-    # ModelManager(
-    #     name="resnet50_custom",
-    #     model_fn=models.resnet50,
-    #     weights=None,
-    #     weights_path=_MODELS_DIR / "resnet50" / "model.pt",
-    # ),
-]
